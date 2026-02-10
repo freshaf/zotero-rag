@@ -39,7 +39,8 @@ No coding knowledge is required to set it up. If you can edit a text file and ru
 
 | Setup | Indexing Cost | Per-Query Cost | Notes |
 |-------|-------------|----------------|-------|
-| **OpenAI + Pinecone** | ~$0.10 per 1,000 docs | ~$0.001/query (search) + ~$0.01/query (chat) | Recommended. Fast, high quality |
+| **OpenAI embeddings + Anthropic chat** | ~$0.10 per 1,000 docs | ~$0.001/query (search) + ~$0.01/query (chat) | Recommended. Best answer quality |
+| **OpenAI embeddings + GPT-4o-mini chat** | ~$0.10 per 1,000 docs | ~$0.001/query (search) + ~$0.001/query (chat) | Cheapest paid option |
 | **Ollama + Pinecone** | Free (but slower) | Free (search) + Free (chat) | Requires decent hardware (8GB+ RAM) |
 | **OpenAI embeddings + Ollama chat** | ~$0.10 per 1,000 docs | ~$0.001/query (search) + Free (chat) | Good middle ground |
 
@@ -64,7 +65,7 @@ Pinecone's free tier supports up to ~100,000 chunks, which is enough for most re
 ### Step 1: Download the Code
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/zotero-rag.git
+git clone https://github.com/freshaf/zotero-rag.git
 cd zotero-rag
 ```
 
@@ -85,7 +86,7 @@ You'll need to run `source .venv/bin/activate` each time you open a new terminal
 
 ### Step 3: Get Your API Keys
 
-You need three things: Zotero API credentials, a Pinecone account, and an embedding provider.
+You need three things: Zotero API credentials, a Pinecone account, and an embedding provider. If you want to use the **web app chat interface** (AI-generated answers, not just search), you'll also need an LLM API key (see below).
 
 #### Zotero API Key
 
@@ -115,6 +116,38 @@ You need three things: Zotero API credentials, a Pinecone account, and an embedd
 2. Install and open Ollama
 3. In your terminal, run: `ollama pull nomic-embed-text`
 4. For chat, also run: `ollama pull llama3.1`
+
+#### LLM for Chat (optional -- needed for web app Q&A)
+
+The web app's chat feature requires an LLM to synthesize answers from your sources. Search and indexing work without one. Choose one:
+
+**Option A -- Anthropic Claude (recommended):**
+1. Sign up at https://console.anthropic.com
+2. Go to https://console.anthropic.com/settings/keys
+3. Click **"Create Key"** and copy it
+4. Add a few dollars of credit ($5 goes a long way)
+5. In your `.env`, set:
+   ```
+   LLM_PROVIDER=anthropic
+   ANTHROPIC_API_KEY=your-key-here
+   ```
+   The default model is Claude Sonnet, which produces excellent research answers with citations.
+
+**Option B -- OpenAI GPT-4o-mini (cheaper):**
+If you're already using OpenAI for embeddings, this is the easiest option -- no extra API key needed.
+1. Uses the same `OPENAI_API_KEY` from the embeddings step
+2. In your `.env`, set:
+   ```
+   LLM_PROVIDER=openai
+   ```
+   The default model is GPT-4o-mini, which costs ~$0.15 per million tokens -- roughly 10x cheaper than Claude Sonnet per query, with slightly lower quality.
+
+**Option C -- Ollama (free, local):**
+If you already installed Ollama for embeddings, just pull a chat model:
+```bash
+ollama pull llama3.1
+```
+In your `.env`, set `LLM_PROVIDER=ollama`. Requires decent hardware (8GB+ RAM).
 
 ### Step 4: Configure
 
