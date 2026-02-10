@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zotero Research Assistant</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #fafafa;
+            --surface: #fff;
+            --border: #e5e5e5;
+            --text: #1a1a1a;
+            --text-muted: #666;
+            --text-faint: #999;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --accent-amber: #fef3c7;
+            --accent-amber-text: #92400e;
+            --accent-blue: #eef2ff;
+            --accent-blue-text: #3b5bdb;
+            --sidebar-width: 240px;
+            --sources-width: 320px;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+            height: 50px;
+        }
+        .header h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .header button {
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text);
+        }
+        .header button:hover { background: #f5f5f5; }
+
+        /* Main layout */
+        .main {
+            display: flex;
+            height: calc(100vh - 50px);
+        }
+
+        /* Filters sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            border-right: 1px solid var(--border);
+            background: var(--surface);
+            padding: 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        .sidebar h2 {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+        .filter-group {
+            margin-bottom: 14px;
+        }
+        .filter-group label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .filter-group select,
+        .filter-group input {
+            width: 100%;
+            padding: 6px 8px;
+            font-size: 0.85rem;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            background: var(--bg);
+            color: var(--text);
+        }
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .date-row {
+            display: flex;
+            gap: 6px;
+        }
+        .date-row input {
+            width: 50%;
+        }
+        .clear-btn {
+            width: 100%;
+            padding: 6px;
+            font-size: 0.82rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            cursor: pointer;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .clear-btn:hover { background: #f5f5f5; }
+        .syntax-help {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+        .syntax-help h3 {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        .syntax-help code {
+            display: inline-block;
+            font-size: 0.72rem;
+            background: var(--bg);
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin: 1px 0;
+            color: var(--text-muted);
+        }
+
+        /* Chat area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+        }
+        .message {
+            margin-bottom: 20px;
+            max-width: 720px;
+        }
+        .message.user {
+            margin-left: auto;
+            background: var(--primary);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 12px 12px 2px 12px;
+            font-size: 0.92rem;
+            width: fit-content;
+            max-width: 80%;
+        }
+        .message.assistant {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 14px 18px;
+            border-radius: 12px;
+            font-size: 0.92rem;
+        }
+        .message.assistant p { margin-bottom: 8px; }
+        .message.assistant p:last-child { margin-bottom: 0; }
+        .message.assistant ul, .message.assistant ol {
+            margin: 6px 0 6px 20px;
+        }
+        .message.assistant h1, .message.assistant h2, .message.assistant h3 {
+            margin: 12px 0 6px;
+            font-size: 1rem;
+        }
+        .message.assistant blockquote {
+            border-left: 3px solid var(--border);
+            padding-left: 12px;
+            color: var(--text-muted);
+            margin: 8px 0;
+        }
+        .message.assistant a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        .message.assistant a:hover { text-decoration: underline; }
+        .message.error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+        }
+        .message .citation-link {
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .message .citation-link:hover { text-decoration: underline; }
+        .thinking-indicator {
+            color: var(--text-faint);
+            font-size: 0.88rem;
+            font-style: italic;
+            padding: 10px 0;
+        }
+
+        /* Input area */
+        .input-area {
+            padding: 12px 24px 16px;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .input-row {
+            display: flex;
+            gap: 8px;
+            max-width: 720px;
+        }
+        .input-row textarea {
+            flex: 1;
+            padding: 10px 14px;
+            font-size: 0.95rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            resize: none;
+            font-family: inherit;
+            line-height: 1.4;
+            min-height: 42px;
+            max-height: 120px;
+            background: var(--bg);
+        }
+        .input-row textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .input-row button {
+            padding: 10px 18px;
+            font-size: 0.95rem;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            align-self: flex-end;
+        }
+        .input-row button:hover { background: var(--primary-hover); }
+        .input-row button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Sources panel */
+        .sources-panel {
+            width: var(--sources-width);
+            border-left: 1px solid var(--border);
+            background: var(--surface);
+            overflow-y: auto;
+            padding: 16px;
+            flex-shrink: 0;
+        }
+        .sources-panel h2 {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+        .sources-empty {
+            color: var(--text-faint);
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 40px;
+        }
+        .source-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .source-card.highlighted {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+        }
+        .source-card .source-num {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 0.8rem;
+        }
+        .source-card .source-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-top: 2px;
+            line-height: 1.3;
+        }
+        .source-card .source-meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+        .source-card .badge {
+            display: inline-block;
+            font-size: 0.68rem;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: var(--accent-blue);
+            color: var(--accent-blue-text);
+            font-weight: 500;
+            margin-top: 4px;
+        }
+        .source-card .badge.archive {
+            background: var(--accent-amber);
+            color: var(--accent-amber-text);
+        }
+        .source-card .source-preview {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            line-height: 1.4;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s;
+        }
+        .source-card .source-preview.expanded {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .source-card .expand-btn {
+            font-size: 0.72rem;
+            color: var(--primary);
+            cursor: pointer;
+            margin-top: 4px;
+            display: inline-block;
+        }
+        .source-card .expand-btn:hover { text-decoration: underline; }
+        .source-card .open-link {
+            font-size: 0.78rem;
+            color: var(--primary);
+            text-decoration: none;
+            margin-top: 4px;
+            display: inline-block;
+        }
+        .source-card .open-link:hover { text-decoration: underline; }
+
+        /* Header button group */
+        .header-buttons {
+            display: flex;
+            gap: 6px;
+            position: relative;
+        }
+
+        /* History panel dropdown */
+        .history-panel {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 6px;
+            width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            z-index: 100;
+        }
+        .history-panel.open { display: block; }
+        .history-panel-empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-faint);
+            font-size: 0.85rem;
+        }
+        .history-item {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+        }
+        .history-item:last-child { border-bottom: none; }
+        .history-item:hover { background: var(--bg); }
+        .history-item.active { background: var(--accent-blue); }
+        .history-item-info { flex: 1; min-width: 0; }
+        .history-item-title {
+            font-size: 0.85rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .history-item-meta {
+            font-size: 0.72rem;
+            color: var(--text-faint);
+            margin-top: 2px;
+        }
+        .history-item-delete {
+            flex-shrink: 0;
+            background: none;
+            border: none;
+            color: var(--text-faint);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0 0 0 8px;
+            line-height: 1;
+        }
+        .history-item-delete:hover { color: #dc2626; }
+        .history-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 99;
+        }
+        .history-backdrop.open { display: block; }
+
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .sources-panel { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Zotero Research Assistant</h1>
+        <div class="header-buttons">
+            <button onclick="toggleHistoryPanel()">History</button>
+            <button onclick="newChat()">New Chat</button>
+            <div class="history-panel" id="history-panel"></div>
+        </div>
+    </div>
+    <div class="history-backdrop" id="history-backdrop" onclick="toggleHistoryPanel()"></div>
+
+    <div class="main">
+        <!-- Filters sidebar -->
+        <div class="sidebar">
+            <h2>Filters</h2>
+
+            <div class="filter-group">
+                <label for="f-archive">Archive</label>
+                <select id="f-archive"><option value="">All archives</option></select>
+            </div>
+
+            <div class="filter-group">
+                <label for="f-type">Item type</label>
+                <select id="f-type"><option value="">All types</option></select>
+            </div>
+
+            <div class="filter-group">
+                <label>Date range</label>
+                <div class="date-row">
+                    <input type="text" id="f-date-from" placeholder="From (YYYY)">
+                    <input type="text" id="f-date-to" placeholder="To (YYYY)">
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label for="f-author">Author</label>
+                <input type="text" id="f-author" placeholder="e.g. Smith">
+            </div>
+
+            <div class="filter-group">
+                <label for="f-tag">Tag</label>
+                <input type="text" id="f-tag" placeholder="e.g. economics">
+            </div>
+
+            <div class="filter-group">
+                <label for="f-collection">Collection</label>
+                <input type="text" id="f-collection" placeholder="e.g. Chapter 3">
+            </div>
+
+            <div class="filter-group">
+                <label for="f-topk">Results</label>
+                <select id="f-topk">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                </select>
+            </div>
+
+            <button class="clear-btn" onclick="clearFilters()">Clear all filters</button>
+
+            <div class="syntax-help">
+                <h3>Inline syntax</h3>
+                <div>
+                    <code>type:hearing</code>
+                    <code>by:Author</code><br>
+                    <code>in:Archive</code>
+                    <code>tag:topic</code><br>
+                    <code>from:1981</code>
+                    <code>to:1985</code><br>
+                    <code>top:5</code>
+                    <code>collection:Name</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat area -->
+        <div class="chat-area">
+            <div class="messages" id="messages">
+                <div class="sources-empty" id="welcome-msg" style="margin-top: 100px; color: #999;">
+                    Ask a question about your Zotero library.<br>
+                    <span style="font-size: 0.8rem;">Responses are grounded in your indexed sources.</span>
+                </div>
+            </div>
+            <div class="input-area">
+                <div class="input-row">
+                    <textarea id="user-input" rows="1" placeholder="Ask about your sources..."
+                              onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+                    <button id="send-btn" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sources panel -->
+        <div class="sources-panel">
+            <h2>Sources</h2>
+            <div id="sources-list">
+                <div class="sources-empty">Sources will appear here after your first query.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let conversation = [];
+        let currentSources = [];
+        let isStreaming = false;
+        let currentChatId = null;
+        const HISTORY_KEY = 'zotero-chat-history';
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        }
+
+        function handleKey(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function loadFilters() {
+            try {
+                const res = await fetch('/api/filters');
+                const data = await res.json();
+
+                const archSel = document.getElementById('f-archive');
+                for (const a of data.archives) {
+                    const opt = document.createElement('option');
+                    opt.value = a.value;
+                    opt.textContent = a.label;
+                    archSel.appendChild(opt);
+                }
+
+                const typeSel = document.getElementById('f-type');
+                for (const t of data.item_types) {
+                    const opt = document.createElement('option');
+                    opt.value = t;
+                    opt.textContent = t;
+                    typeSel.appendChild(opt);
+                }
+            } catch (e) {
+                console.error('Failed to load filters:', e);
+            }
+        }
+
+        function getFilters() {
+            return {
+                archive: document.getElementById('f-archive').value,
+                item_type: document.getElementById('f-type').value,
+                date_from: document.getElementById('f-date-from').value.trim(),
+                date_to: document.getElementById('f-date-to').value.trim(),
+                author: document.getElementById('f-author').value.trim(),
+                tag: document.getElementById('f-tag').value.trim(),
+                collection: document.getElementById('f-collection').value.trim(),
+                top_k: parseInt(document.getElementById('f-topk').value) || 10,
+            };
+        }
+
+        function clearFilters() {
+            document.getElementById('f-archive').value = '';
+            document.getElementById('f-type').value = '';
+            document.getElementById('f-date-from').value = '';
+            document.getElementById('f-date-to').value = '';
+            document.getElementById('f-author').value = '';
+            document.getElementById('f-tag').value = '';
+            document.getElementById('f-collection').value = '';
+            document.getElementById('f-topk').value = '10';
+        }
+
+        function newChat() {
+            saveHistory();
+            conversation = [];
+            currentSources = [];
+            currentChatId = null;
+            saveHistory();
+            const msgs = document.getElementById('messages');
+            msgs.innerHTML = `<div class="sources-empty" id="welcome-msg" style="margin-top: 100px; color: #999;">
+                Ask a question about your Zotero library.<br>
+                <span style="font-size: 0.8rem;">Responses are grounded in your indexed sources.</span>
+            </div>`;
+            document.getElementById('sources-list').innerHTML =
+                '<div class="sources-empty">Sources will appear here after your first query.</div>';
+        }
+
+        function addMessage(role, html) {
+            const welcome = document.getElementById('welcome-msg');
+            if (welcome) welcome.remove();
+
+            const msgs = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = 'message ' + role;
+            div.innerHTML = html;
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+            return div;
+        }
+
+        function renderSources(sources) {
+            currentSources = sources;
+            const list = document.getElementById('sources-list');
+            if (!sources.length) {
+                list.innerHTML = '<div class="sources-empty">No sources found.</div>';
+                return;
+            }
+            list.innerHTML = '';
+            sources.forEach((s, i) => {
+                const num = i + 1;
+                const card = document.createElement('div');
+                card.className = 'source-card';
+                card.id = 'source-' + num;
+
+                const authors = (s.authors || []).join(', ') || 'Unknown';
+                const pageStr = s.page_start > 0
+                    ? (s.page_end > s.page_start ? `pp. ${s.page_start}-${s.page_end}` : `p. ${s.page_start}`)
+                    : '';
+
+                let badges = '';
+                if (s.item_type) badges += `<span class="badge">${s.item_type}</span> `;
+                if (s.archive) badges += `<span class="badge archive">${s.archive}</span>`;
+
+                const preview = (s.text || '').substring(0, 400) + ((s.text || '').length > 400 ? '...' : '');
+
+                let openLink = '';
+                if (s.zotero_url) {
+                    openLink = `<a class="open-link" href="${s.zotero_url}" target="_blank">Open in Zotero</a>`;
+                }
+
+                card.innerHTML = `
+                    <span class="source-num">[${num}]</span>
+                    <div class="source-title">${escapeHtml(s.title || 'Untitled')}</div>
+                    <div class="source-meta">${escapeHtml(authors)}${s.date ? ' (' + escapeHtml(s.date) + ')' : ''}${pageStr ? ' &middot; ' + pageStr : ''}</div>
+                    ${badges}
+                    <div class="source-preview" id="preview-${num}">${escapeHtml(preview)}</div>
+                    <span class="expand-btn" onclick="togglePreview(${num})">Show preview</span>
+                    ${openLink}
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function togglePreview(num) {
+            const el = document.getElementById('preview-' + num);
+            const btn = el.nextElementSibling;
+            if (el.classList.contains('expanded')) {
+                el.classList.remove('expanded');
+                btn.textContent = 'Show preview';
+            } else {
+                el.classList.add('expanded');
+                btn.textContent = 'Hide preview';
+            }
+        }
+
+        function highlightSource(num) {
+            document.querySelectorAll('.source-card.highlighted').forEach(c => c.classList.remove('highlighted'));
+            const card = document.getElementById('source-' + num);
+            if (card) {
+                card.classList.add('highlighted');
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function processCitations(html) {
+            return html.replace(/\[(\d+)\]/g, (match, num) => {
+                return `<span class="citation-link" onclick="highlightSource(${num})">[${num}]</span>`;
+            });
+        }
+
+        async function sendMessage() {
+            if (isStreaming) return;
+            const input = document.getElementById('user-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.value = '';
+            autoResize(input);
+
+            addMessage('user', escapeHtml(text));
+            conversation.push({ role: 'user', content: text });
+
+            const filters = getFilters();
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            isStreaming = true;
+
+            const thinkingDiv = addMessage('assistant', '<span class="thinking-indicator">Searching sources...</span>');
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: text,
+                        conversation: conversation.slice(0, -1),
+                        filters: filters,
+                        top_k: filters.top_k
+                    })
+                });
+
+                if (!response.ok) {
+                    const err = await response.text();
+                    thinkingDiv.className = 'message error';
+                    thinkingDiv.innerHTML = 'Error: ' + escapeHtml(err);
+                    isStreaming = false;
+                    sendBtn.disabled = false;
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullText = '';
+
+                thinkingDiv.innerHTML = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            try {
+                                const evt = JSON.parse(data);
+                                if (evt.type === 'sources') {
+                                    renderSources(evt.sources);
+                                    thinkingDiv.innerHTML = '<span class="thinking-indicator">Generating response...</span>';
+                                } else if (evt.type === 'delta') {
+                                    if (thinkingDiv.querySelector('.thinking-indicator')) {
+                                        thinkingDiv.innerHTML = '';
+                                    }
+                                    fullText += evt.text;
+                                    thinkingDiv.innerHTML = processCitations(marked.parse(fullText));
+                                } else if (evt.type === 'done') {
+                                    thinkingDiv.innerHTML = processCitations(marked.parse(fullText));
+                                } else if (evt.type === 'error') {
+                                    thinkingDiv.className = 'message error';
+                                    thinkingDiv.innerHTML = 'Error: ' + escapeHtml(evt.message);
+                                }
+                            } catch (e) { }
+                        }
+                    }
+                    const msgs = document.getElementById('messages');
+                    msgs.scrollTop = msgs.scrollHeight;
+                }
+
+                if (fullText) {
+                    conversation.push({ role: 'assistant', content: fullText });
+                    saveHistory();
+                }
+
+            } catch (e) {
+                thinkingDiv.className = 'message error';
+                thinkingDiv.innerHTML = 'Connection error: ' + escapeHtml(e.message);
+            }
+
+            isStreaming = false;
+            sendBtn.disabled = false;
+            document.getElementById('user-input').focus();
+        }
+
+        // --- Chat history persistence ---
+
+        function getHistoryData() {
+            try {
+                return JSON.parse(localStorage.getItem(HISTORY_KEY)) || { chats: [], currentChatId: null };
+            } catch { return { chats: [], currentChatId: null }; }
+        }
+
+        function setHistoryData(data) {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(data));
+        }
+
+        function saveHistory() {
+            const data = getHistoryData();
+            if (currentChatId && conversation.length > 0) {
+                const existing = data.chats.find(c => c.id === currentChatId);
+                const firstUserMsg = conversation.find(m => m.role === 'user');
+                const title = firstUserMsg ? firstUserMsg.content.substring(0, 60) : 'New chat';
+                if (existing) {
+                    existing.title = title;
+                    existing.updatedAt = Date.now();
+                    existing.messages = conversation.slice();
+                } else {
+                    data.chats.push({
+                        id: currentChatId,
+                        title: title,
+                        updatedAt: Date.now(),
+                        messages: conversation.slice()
+                    });
+                }
+            }
+            data.currentChatId = currentChatId;
+            data.chats.sort((a, b) => b.updatedAt - a.updatedAt);
+            setHistoryData(data);
+        }
+
+        function loadHistory() {
+            const data = getHistoryData();
+            if (data.currentChatId) {
+                const chat = data.chats.find(c => c.id === data.currentChatId);
+                if (chat && chat.messages.length > 0) {
+                    currentChatId = chat.id;
+                    conversation = chat.messages.slice();
+                    replayMessages();
+                    return;
+                }
+            }
+            currentChatId = null;
+        }
+
+        function replayMessages() {
+            const msgs = document.getElementById('messages');
+            msgs.innerHTML = '';
+            document.getElementById('sources-list').innerHTML =
+                '<div class="sources-empty">Sources will appear here after your next query.</div>';
+            for (const msg of conversation) {
+                if (msg.role === 'user') {
+                    addMessage('user', escapeHtml(msg.content));
+                } else if (msg.role === 'assistant') {
+                    addMessage('assistant', processCitations(marked.parse(msg.content)));
+                }
+            }
+        }
+
+        function switchChat(id) {
+            if (id === currentChatId) {
+                toggleHistoryPanel();
+                return;
+            }
+            saveHistory();
+            const data = getHistoryData();
+            const chat = data.chats.find(c => c.id === id);
+            if (!chat) return;
+            currentChatId = chat.id;
+            conversation = chat.messages.slice();
+            currentSources = [];
+            data.currentChatId = currentChatId;
+            setHistoryData(data);
+            replayMessages();
+            toggleHistoryPanel();
+        }
+
+        function deleteChat(id, evt) {
+            evt.stopPropagation();
+            if (!confirm('Delete this chat?')) return;
+            const data = getHistoryData();
+            data.chats = data.chats.filter(c => c.id !== id);
+            if (currentChatId === id) {
+                currentChatId = null;
+                conversation = [];
+                currentSources = [];
+                data.currentChatId = null;
+                const msgs = document.getElementById('messages');
+                msgs.innerHTML = `<div class="sources-empty" id="welcome-msg" style="margin-top: 100px; color: #999;">
+                    Ask a question about your Zotero library.<br>
+                    <span style="font-size: 0.8rem;">Responses are grounded in your indexed sources.</span>
+                </div>`;
+                document.getElementById('sources-list').innerHTML =
+                    '<div class="sources-empty">Sources will appear here after your first query.</div>';
+            }
+            setHistoryData(data);
+            renderHistoryList();
+        }
+
+        function toggleHistoryPanel() {
+            const panel = document.getElementById('history-panel');
+            const backdrop = document.getElementById('history-backdrop');
+            const isOpen = panel.classList.contains('open');
+            if (isOpen) {
+                panel.classList.remove('open');
+                backdrop.classList.remove('open');
+            } else {
+                renderHistoryList();
+                panel.classList.add('open');
+                backdrop.classList.add('open');
+            }
+        }
+
+        function renderHistoryList() {
+            const data = getHistoryData();
+            const panel = document.getElementById('history-panel');
+            if (data.chats.length === 0) {
+                panel.innerHTML = '<div class="history-panel-empty">No chat history yet.</div>';
+                return;
+            }
+            panel.innerHTML = data.chats.map(chat => {
+                const msgCount = chat.messages.filter(m => m.role === 'user').length;
+                const date = new Date(chat.updatedAt);
+                const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const isActive = chat.id === currentChatId;
+                return `<div class="history-item${isActive ? ' active' : ''}" onclick="switchChat('${chat.id}')">
+                    <div class="history-item-info">
+                        <div class="history-item-title">${escapeHtml(chat.title)}</div>
+                        <div class="history-item-meta">${dateStr} &middot; ${msgCount} message${msgCount !== 1 ? 's' : ''}</div>
+                    </div>
+                    <button class="history-item-delete" onclick="deleteChat('${chat.id}', event)" title="Delete">&times;</button>
+                </div>`;
+            }).join('');
+        }
+
+        const origSendMessage = sendMessage;
+        sendMessage = async function() {
+            if (!currentChatId && !isStreaming) {
+                currentChatId = String(Date.now());
+            }
+            return origSendMessage();
+        };
+
+        // Initialize
+        loadFilters();
+        loadHistory();
+        document.getElementById('user-input').focus();
+    </script>
+</body>
+</html>

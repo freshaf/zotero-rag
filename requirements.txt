@@ -1,0 +1,13 @@
+pyzotero>=1.5.0
+pinecone>=5.0.0
+openai>=1.0.0
+beautifulsoup4>=4.12.0
+ebooklib>=0.18
+lxml>=5.0.0
+mcp>=1.0.0
+tiktoken>=0.7.0
+python-dotenv>=1.0.0
+flashrank>=0.2.0
+fastapi>=0.115.0
+uvicorn>=0.30.0
+anthropic>=0.49.0
