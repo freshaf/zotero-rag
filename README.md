@@ -29,6 +29,9 @@ No coding knowledge is required to set it up. If you can edit a text file and ru
 ### Three Ways to Use It
 
 - **Web app** (`webapp.py`) -- a browser-based chat interface with filters and source cards
+
+<img width="1602" height="857" alt="image" src="https://github.com/user-attachments/assets/8417971c-1894-492e-a864-15f52cb732d9" />
+
 - **CLI search** (`search.py`) -- quick terminal search, no AI needed (just embeddings)
 - **Claude Desktop integration** (`server.py`) -- use as an MCP server inside Claude Desktop
 
