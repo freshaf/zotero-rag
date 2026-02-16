@@ -831,12 +831,14 @@
                     existing.title = title;
                     existing.updatedAt = Date.now();
                     existing.messages = conversation.slice();
+                    existing.sources = currentSources.slice();
                 } else {
                     data.chats.push({
                         id: currentChatId,
                         title: title,
                         updatedAt: Date.now(),
-                        messages: conversation.slice()
+                        messages: conversation.slice(),
+                        sources: currentSources.slice()
                     });
                 }
             }
@@ -852,6 +854,7 @@
                 if (chat && chat.messages.length > 0) {
                     currentChatId = chat.id;
                     conversation = chat.messages.slice();
+                    currentSources = (chat.sources || []).slice();
                     replayMessages();
                     return;
                 }
@@ -862,8 +865,12 @@
         function replayMessages() {
             const msgs = document.getElementById('messages');
             msgs.innerHTML = '';
-            document.getElementById('sources-list').innerHTML =
-                '<div class="sources-empty">Sources will appear here after your next query.</div>';
+            if (currentSources.length > 0) {
+                renderSources(currentSources);
+            } else {
+                document.getElementById('sources-list').innerHTML =
+                    '<div class="sources-empty">Sources will appear here after your next query.</div>';
+            }
             for (const msg of conversation) {
                 if (msg.role === 'user') {
                     addMessage('user', escapeHtml(msg.content));
@@ -884,7 +891,7 @@
             if (!chat) return;
             currentChatId = chat.id;
             conversation = chat.messages.slice();
-            currentSources = [];
+            currentSources = (chat.sources || []).slice();
             data.currentChatId = currentChatId;
             setHistoryData(data);
             replayMessages();
