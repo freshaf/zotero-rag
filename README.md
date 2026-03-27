@@ -1,5 +1,8 @@
 # Zotero RAG: AI-Powered Research Assistant for Your Zotero Library
 
+<img width="1274" height="632" alt="Screenshot 2026-03-27 at 2 00 08 PM" src="https://github.com/user-attachments/assets/8731e49c-c5a9-4a48-8eb3-72a9768a7e9d" />
+
+
 Search your Zotero library using natural language and get AI-generated answers grounded in your actual sources, with citations and links back to the original documents.
 
 ## Why This Exists
